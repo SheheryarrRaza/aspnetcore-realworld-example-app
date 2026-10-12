@@ -67,12 +67,14 @@ public class List
                 );
             }
 
+            var offset = message.Offset ?? 0;
+            var limit = message.Limit ?? 20;
             var count = await queryable.CountAsync(cancellationToken);
             var articles = await queryable
                 .OrderByDescending(x => x.CreatedAt)
                 .ThenByDescending(x => x.ArticleId)
-                .Skip(message.Offset ?? 0)
-                .Take(message.Limit ?? 20)
+                .Skip(offset + 1)
+                .Take(limit)
                 .Select(x => new ArticleSummary
                 {
                     Slug = x.Slug,
