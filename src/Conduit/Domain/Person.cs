@@ -27,6 +27,9 @@ public class Person
     public List<ArticleFavorite> ArticleFavorites { get; init; } = new();
 
     [JsonIgnore]
+    public List<ArticleBookmark> ArticleBookmarks { get; init; } = new();
+
+    [JsonIgnore]
     public List<FollowedPeople> Following { get; init; } = new();
 
     [JsonIgnore]

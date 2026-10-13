@@ -1,6 +1,9 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Conduit.Domain;
 using Conduit.Features.Articles;
+using Conduit.Infrastructure.Errors;
 using Xunit;
 
 namespace Conduit.IntegrationTests.Features.Articles;
@@ -99,5 +102,94 @@ public class ListTests : SliceFixture
 
         Assert.NotNull(result);
         Assert.Equal(0, result.ArticlesCount);
+    }
+
+    [Fact]
+    public async Task Expect_Bookmarked_List_Returns_Only_Callers_Bookmarks_Newest_First_With_Paging()
+    {
+        var dbContext = GetDbContext();
+        var author = new Person { Username = "bookmarklistauthor" };
+        var caller = new Person { Username = "bookmarklistcaller" };
+        var other = new Person { Username = "bookmarklistother" };
+        var articleA = new Article
+        {
+            Slug = "bookmark-list-a",
+            Title = "A",
+            Author = author,
+        };
+        var articleB = new Article
+        {
+            Slug = "bookmark-list-b",
+            Title = "B",
+            Author = author,
+        };
+        var articleC = new Article
+        {
+            Slug = "bookmark-list-c",
+            Title = "C",
+            Author = author,
+        };
+        dbContext.AddRange(author, caller, other, articleA, articleB, articleC);
+        await dbContext.SaveChangesAsync();
+
+        var baseTime = DateTime.UtcNow;
+        dbContext.AddRange(
+            new ArticleBookmark
+            {
+                Article = articleA,
+                Person = caller,
+                CreatedAt = baseTime,
+            },
+            new ArticleBookmark
+            {
+                Article = articleB,
+                Person = caller,
+                CreatedAt = baseTime.AddMinutes(1),
+            },
+            // bookmarked by a different user; must never appear in the caller's list
+            new ArticleBookmark
+            {
+                Article = articleC,
+                Person = other,
+                CreatedAt = baseTime.AddMinutes(2),
+            }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var accessor = new StubCurrentUserAccessor(caller.Username, caller.PersonId);
+        var result = await new List.QueryHandler(dbContext, accessor).Handle(
+            new List.Query(null, null, null, null, null) { IsBookmarked = true },
+            CancellationToken.None
+        );
+
+        Assert.Equal(2, result.ArticlesCount);
+        Assert.Collection(
+            result.Articles,
+            a => Assert.Equal(articleB.Slug, a.Slug),
+            a => Assert.Equal(articleA.Slug, a.Slug)
+        );
+
+        var paged = await new List.QueryHandler(dbContext, accessor).Handle(
+            new List.Query(null, null, null, 1, 1) { IsBookmarked = true },
+            CancellationToken.None
+        );
+        Assert.Equal(2, paged.ArticlesCount);
+        Assert.Equal(articleA.Slug, Assert.Single(paged.Articles).Slug);
+    }
+
+    [Fact]
+    public async Task Expect_Bookmarked_List_Throws_Unauthorized_When_No_Current_User()
+    {
+        var accessor = new StubCurrentUserAccessor(null);
+
+        var ex = await Assert.ThrowsAsync<RestException>(() =>
+            new List.QueryHandler(GetDbContext(), accessor)
+                .Handle(
+                    new List.Query(null, null, null, null, null) { IsBookmarked = true },
+                    CancellationToken.None
+                )
+                .AsTask()
+        );
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, ex.Code);
     }
 }

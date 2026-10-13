@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Conduit.Features.Articles;
 using Conduit.IntegrationTests.Features.Comments;
@@ -129,5 +130,41 @@ public class DeleteTests : SliceFixture
             db.Articles.Where(d => d.Slug == deleteCmd.Slug).SingleOrDefaultAsync()
         );
         Assert.Null(deleted);
+    }
+
+    [Fact]
+    public async Task Expect_Delete_Article_Removes_Bookmarks()
+    {
+        var createCmd = new Create.Command(
+            new Create.ArticleData
+            {
+                Title = "Test article with bookmark",
+                Description = "Description of the test article",
+                Body = "Body of the test article",
+            }
+        );
+
+        var article = await ArticleHelpers.CreateArticle(this, createCmd);
+        var slug = article.Slug ?? throw new InvalidOperationException();
+
+        var dbContext = GetDbContext();
+        var accessor = new StubCurrentUserAccessor(UserHelpers.DefaultUserName);
+        await new Conduit.Features.Bookmarks.Add.QueryHandler(dbContext, accessor).Handle(
+            new Conduit.Features.Bookmarks.Add.Command(slug),
+            CancellationToken.None
+        );
+
+        var bookmarkCountBeforeDelete = await ExecuteDbContextAsync(db =>
+            db.ArticleBookmarks.Where(b => b.Article!.Slug == slug).CountAsync()
+        );
+        Assert.Equal(1, bookmarkCountBeforeDelete);
+
+        var articleDeleteHandler = new Delete.QueryHandler(dbContext, accessor);
+        await articleDeleteHandler.Handle(new Delete.Command(slug), CancellationToken.None);
+
+        var bookmarkCountAfterDelete = await ExecuteDbContextAsync(db =>
+            db.ArticleBookmarks.Where(b => b.Article!.Slug == slug).CountAsync()
+        );
+        Assert.Equal(0, bookmarkCountAfterDelete);
     }
 }

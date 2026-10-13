@@ -10,6 +10,7 @@ public partial class ConduitMapper
 {
     [MapperIgnoreSource(nameof(Person.PersonId))]
     [MapperIgnoreSource(nameof(Person.ArticleFavorites))]
+    [MapperIgnoreSource(nameof(Person.ArticleBookmarks))]
     [MapperIgnoreSource(nameof(Person.Following))]
     [MapperIgnoreSource(nameof(Person.Followers))]
     [MapperIgnoreSource(nameof(Person.Hash))]
@@ -21,6 +22,7 @@ public partial class ConduitMapper
     [MapperIgnoreSource(nameof(Person.PersonId))]
     [MapperIgnoreSource(nameof(Person.Email))]
     [MapperIgnoreSource(nameof(Person.ArticleFavorites))]
+    [MapperIgnoreSource(nameof(Person.ArticleBookmarks))]
     [MapperIgnoreSource(nameof(Person.Following))]
     [MapperIgnoreSource(nameof(Person.Followers))]
     [MapperIgnoreSource(nameof(Person.Hash))]
