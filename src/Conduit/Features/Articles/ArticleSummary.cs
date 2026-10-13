@@ -14,5 +14,6 @@ public class ArticleSummary
     public DateTime UpdatedAt { get; init; }
     public bool Favorited { get; init; }
     public int FavoritesCount { get; init; }
+    public bool Bookmarked { get; init; }
     public Profile? Author { get; init; }
 }

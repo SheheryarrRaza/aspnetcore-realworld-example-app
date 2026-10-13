@@ -75,6 +75,7 @@ public class Add
             }
 
             new[] { article }.PopulateFavorited(currentUserAccessor.GetCurrentPersonId());
+            new[] { article }.PopulateBookmarked(currentUserAccessor.GetCurrentPersonId());
             return new ArticleEnvelope(article);
         }
     }

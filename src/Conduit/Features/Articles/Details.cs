@@ -35,6 +35,7 @@ public class Details
                 throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
             }
             new[] { article }.PopulateFavorited(currentUserAccessor.GetCurrentPersonId());
+            new[] { article }.PopulateBookmarked(currentUserAccessor.GetCurrentPersonId());
             return new ArticleEnvelope(article);
         }
     }

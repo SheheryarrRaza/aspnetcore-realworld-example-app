@@ -18,7 +18,8 @@ public class List
         string? FavoritedUsername,
         int? Limit,
         int? Offset,
-        bool IsFeed = false
+        bool IsFeed = false,
+        bool IsBookmarked = false
     ) : IRequest<ArticlesEnvelope>, IReadOnlyRequest;
 
     public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
@@ -67,10 +68,28 @@ public class List
                 );
             }
 
+            if (message.IsBookmarked)
+            {
+                if (currentPersonId == null)
+                {
+                    throw new RestException(HttpStatusCode.Unauthorized, "token", "is missing");
+                }
+                queryable = queryable.Where(x =>
+                    x.ArticleBookmarks.Any(y => y.PersonId == currentPersonId)
+                );
+            }
+
             var count = await queryable.CountAsync(cancellationToken);
-            var articles = await queryable
-                .OrderByDescending(x => x.CreatedAt)
-                .ThenByDescending(x => x.ArticleId)
+            var orderedQueryable = message.IsBookmarked
+                ? queryable
+                    .OrderByDescending(x =>
+                        x.ArticleBookmarks.Where(y => y.PersonId == currentPersonId)
+                            .Select(y => y.CreatedAt)
+                            .FirstOrDefault()
+                    )
+                    .ThenByDescending(x => x.ArticleId)
+                : queryable.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.ArticleId);
+            var articles = await orderedQueryable
                 .Skip(message.Offset ?? 0)
                 .Take(message.Limit ?? 20)
                 .Select(x => new ArticleSummary
@@ -85,6 +104,9 @@ public class List
                     Favorited =
                         currentPersonId != null
                         && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
+                    Bookmarked =
+                        currentPersonId != null
+                        && x.ArticleBookmarks.Any(y => y.PersonId == currentPersonId),
                     Author =
                         x.Author == null
                             ? null

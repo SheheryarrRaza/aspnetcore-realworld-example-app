@@ -63,6 +63,7 @@ public class Delete
             }
 
             new[] { article }.PopulateFavorited(currentUserAccessor.GetCurrentPersonId());
+            new[] { article }.PopulateBookmarked(currentUserAccessor.GetCurrentPersonId());
             return new ArticleEnvelope(article);
         }
     }
