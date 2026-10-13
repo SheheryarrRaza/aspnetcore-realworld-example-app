@@ -103,7 +103,7 @@ public class ApiTests
         Assert.Equal(2, list.RootElement.GetProperty("articlesCount").GetInt32());
         var article = Assert.Single(list.RootElement.GetProperty("articles").EnumerateArray());
         Assert.False(article.TryGetProperty("body", out _));
-        Assert.Equal(0, article.GetProperty("favoritesCount").GetInt32());
+        Assert.Equal(0, article.GetProperty("favoriteCount").GetInt32());
         Assert.Equal(
             "tag",
             Assert.Single(article.GetProperty("tagList").EnumerateArray()).GetString()

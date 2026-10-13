@@ -13,6 +13,6 @@ public class ArticleSummary
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public bool Favorited { get; init; }
-    public int FavoritesCount { get; init; }
+    public int FavoriteCount { get; init; }
     public Profile? Author { get; init; }
 }

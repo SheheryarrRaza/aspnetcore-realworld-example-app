@@ -81,7 +81,7 @@ public class List
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt,
                     TagList = x.ArticleTags.Select(y => y.TagId!).ToList(),
-                    FavoritesCount = x.ArticleFavorites.Count,
+                    FavoriteCount = x.ArticleFavorites.Count,
                     Favorited =
                         currentPersonId != null
                         && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
