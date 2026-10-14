@@ -41,6 +41,35 @@ public class ApiTests
         Assert.Contains("after", await current.Content.ReadAsStringAsync());
     }
 
+    /// <summary>Verifies that an unauthenticated GET /api/ping returns a JSON body of { "pong": true }.</summary>
+    [Fact]
+    public async Task Ping_Returns_Pong_Without_Authentication()
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/ping");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(document.RootElement.GetProperty("pong").GetBoolean());
+        Assert.Single(document.RootElement.EnumerateObject());
+    }
+
+    /// <summary>Verifies that ping ignores invalid tokens, follows a custom route prefix and appears in Swagger.</summary>
+    [Fact]
+    public async Task Ping_Ignores_Invalid_Tokens_And_Honors_Route_Prefix_And_Swagger()
+    {
+        using var factory = new ApiFactory("custom");
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("Authorization", "Token invalid");
+        using var ping = await client.GetAsync("/custom/ping");
+        Assert.Equal(HttpStatusCode.OK, ping.StatusCode);
+        using var oldRoute = await client.GetAsync("/api/ping");
+        Assert.Equal(HttpStatusCode.NotFound, oldRoute.StatusCode);
+        using var swagger = await client.GetAsync("/swagger/v1/swagger.json");
+        Assert.Contains("/custom/ping", await swagger.Content.ReadAsStringAsync());
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("{\"user\":null}")]
