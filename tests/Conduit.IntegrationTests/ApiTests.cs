@@ -70,6 +70,46 @@ public class ApiTests
         Assert.Contains("/custom/tags", await swagger.Content.ReadAsStringAsync());
     }
 
+    /// <summary>
+    /// Verifies that /api/status answers 200 with only an ok status, even with an invalid token.
+    /// </summary>
+    [Fact]
+    public async Task Status_Endpoint_Returns_Ok_Without_Authentication()
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/status");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("ok", document.RootElement.GetProperty("status").GetString());
+        Assert.Single(document.RootElement.EnumerateObject());
+
+        client.DefaultRequestHeaders.Add("Authorization", "Token invalid");
+        using var withInvalidToken = await client.GetAsync("/api/status");
+        Assert.Equal(HttpStatusCode.OK, withInvalidToken.StatusCode);
+    }
+
+    /// <summary>
+    /// Verifies that the status route follows a custom prefix and is listed in Swagger.
+    /// </summary>
+    [Fact]
+    public async Task Status_Endpoint_Follows_The_Route_Prefix_And_Is_Listed_In_Swagger()
+    {
+        using var factory = new ApiFactory("custom");
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/custom/status");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var oldRoute = await client.GetAsync("/api/status");
+        Assert.Equal(HttpStatusCode.NotFound, oldRoute.StatusCode);
+        using var swagger = await client.GetAsync("/swagger/v1/swagger.json");
+        using var document = JsonDocument.Parse(await swagger.Content.ReadAsStringAsync());
+        var operation = document
+            .RootElement.GetProperty("paths")
+            .GetProperty("/custom/status")
+            .GetProperty("get");
+        Assert.Equal("status", operation.GetProperty("tags")[0].GetString());
+    }
+
     [Fact]
     public async Task Article_Lists_Omit_Bodies_And_Report_Unpaginated_Counts()
     {
