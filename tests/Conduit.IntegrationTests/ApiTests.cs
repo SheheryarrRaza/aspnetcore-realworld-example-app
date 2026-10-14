@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -68,6 +69,34 @@ public class ApiTests
         using var swagger = await client.GetAsync("/swagger/v1/swagger.json");
         Assert.Equal(HttpStatusCode.OK, swagger.StatusCode);
         Assert.Contains("/custom/tags", await swagger.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Verifies that an anonymous GET /api/version returns the assembly version as JSON.</summary>
+    [Fact]
+    public async Task Version_Endpoint_Returns_Assembly_Version_Without_Authentication()
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/version");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var version = document.RootElement.GetProperty("version").GetString();
+        Assert.NotNull(version);
+        Assert.True(Version.TryParse(version, out _));
+        Assert.Equal(typeof(Program).Assembly.GetName().Version!.ToString(3), version);
+    }
+
+    /// <summary>Verifies that the version endpoint honours the configured prefix and is listed in Swagger.</summary>
+    [Fact]
+    public async Task Version_Endpoint_Follows_The_Configured_Prefix_And_Appears_In_Swagger()
+    {
+        using var factory = new ApiFactory("custom");
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/custom/version");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var swagger = await client.GetAsync("/swagger/v1/swagger.json");
+        Assert.Contains("/custom/version", await swagger.Content.ReadAsStringAsync());
     }
 
     [Fact]
