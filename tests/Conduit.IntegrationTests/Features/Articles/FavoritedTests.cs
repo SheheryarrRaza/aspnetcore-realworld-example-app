@@ -32,12 +32,12 @@ public class FavoritedTests : SliceFixture
             default
         );
         Assert.Equal(expected, details.Article.Favorited);
-        Assert.Equal(1, details.Article.FavoritesCount);
+        Assert.Equal(1, details.Article.FavoriteCount);
         var list = await new List.QueryHandler(db, accessor).Handle(
             new List.Query(null, null, null, null, null),
             default
         );
         Assert.Equal(expected, Assert.Single(list.Articles).Favorited);
-        Assert.Equal(1, Assert.Single(list.Articles).FavoritesCount);
+        Assert.Equal(1, Assert.Single(list.Articles).FavoriteCount);
     }
 }

@@ -29,7 +29,7 @@ public class Article
     public bool Favorited { get; set; }
 
     [NotMapped]
-    public int FavoritesCount => ArticleFavorites?.Count ?? 0;
+    public int FavoriteCount => ArticleFavorites?.Count ?? 0;
 
     [NotMapped]
     public List<string> TagList =>
