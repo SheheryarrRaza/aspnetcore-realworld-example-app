@@ -1,6 +1,8 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Conduit.Features.Articles;
+using Conduit.Infrastructure.Errors;
+using FluentValidation;
 using Xunit;
 
 namespace Conduit.IntegrationTests.Features.Articles;
@@ -60,5 +62,46 @@ public class CreateTests : SliceFixture
         Assert.NotNull(article);
         Assert.Equal(article.Title, command.Article.Title);
         Assert.Equal(article.TagList.Count(), command.Article.TagList?.Count());
+    }
+
+    [Fact]
+    public async Task Title_Of_101_Characters_Is_Rejected_With_Limit_Message()
+    {
+        var command = new Create.Command(
+            new Create.ArticleData
+            {
+                Title = new string('a', 101),
+                Description = "d",
+                Body = "b",
+            }
+        );
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await SendAsync(command)
+        );
+
+        var error = Assert.Single(exception.Errors);
+        Assert.Equal("Article.Title", error.PropertyName);
+        Assert.Equal(Constants.TITLE_TOO_LONG, error.ErrorMessage);
+        Assert.Contains("100", error.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Title_Of_Exactly_100_Characters_Is_Accepted()
+    {
+        var title = new string('a', 100);
+        var command = new Create.Command(
+            new Create.ArticleData
+            {
+                Title = title,
+                Description = "d",
+                Body = "b",
+            }
+        );
+
+        var article = await ArticleHelpers.CreateArticle(this, command);
+
+        Assert.Equal(title, article.Title);
+        Assert.True(new Create.CommandValidator().Validate(command).IsValid);
     }
 }

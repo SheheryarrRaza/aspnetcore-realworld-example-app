@@ -7,5 +7,6 @@ public static class Constants
     public const string BLANK = "can't be blank";
     public const string FORBIDDEN = "forbidden";
     public const string PASSWORD_TOO_SHORT = "is too short (minimum is 8 characters)";
+    public const string TITLE_TOO_LONG = "is too long (maximum is 100 characters)";
     public const string InternalServerError = nameof(InternalServerError);
 }

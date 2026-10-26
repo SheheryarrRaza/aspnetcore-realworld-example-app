@@ -29,7 +29,11 @@ public class Create
     {
         public ArticleDataValidator()
         {
-            RuleFor(x => x.Title).NotEmpty().WithMessage(Constants.BLANK);
+            RuleFor(x => x.Title)
+                .NotEmpty()
+                .WithMessage(Constants.BLANK)
+                .MaximumLength(100)
+                .WithMessage(Constants.TITLE_TOO_LONG);
             RuleFor(x => x.Description).NotEmpty().WithMessage(Constants.BLANK);
             RuleFor(x => x.Body).NotEmpty().WithMessage(Constants.BLANK);
         }

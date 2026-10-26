@@ -109,4 +109,44 @@ public class ApiTests
             Assert.Single(article.GetProperty("tagList").EnumerateArray()).GetString()
         );
     }
+
+    [Theory]
+    [InlineData(101, HttpStatusCode.UnprocessableEntity)]
+    [InlineData(100, HttpStatusCode.Created)]
+    public async Task Article_Title_Length_Limit_Is_Enforced_Through_The_Http_Pipeline(
+        int titleLength,
+        HttpStatusCode expected
+    )
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var register = await client.PostAsync(
+            "/api/users",
+            Json(
+                """{"user":{"username":"titler","email":"titler@example.com","password":"password"}}"""
+            )
+        );
+        register.EnsureSuccessStatusCode();
+        using var user = JsonDocument.Parse(await register.Content.ReadAsStringAsync());
+        client.DefaultRequestHeaders.Add(
+            "Authorization",
+            "Token " + user.RootElement.GetProperty("user").GetProperty("token").GetString()
+        );
+
+        var title = new string('a', titleLength);
+        using var response = await client.PostAsync(
+            "/api/articles",
+            Json(
+                $$$"""{"article":{"title":"{{{title}}}","description":"description","body":"body"}}"""
+            )
+        );
+
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.UnprocessableEntity)
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var messages = document.RootElement.GetProperty("errors").GetProperty("title");
+            Assert.Contains("100 characters", messages[0].GetString());
+        }
+    }
 }
