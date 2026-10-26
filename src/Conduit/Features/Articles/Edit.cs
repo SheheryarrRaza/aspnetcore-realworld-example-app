@@ -51,6 +51,10 @@ public class Edit
         public CommandValidator()
         {
             RuleFor(x => x.Model.Article).NotNull();
+            RuleFor(x => x.Model.Article.Title)
+                .MaximumLength(100)
+                .WithMessage(Constants.TITLE_TOO_LONG)
+                .When(x => x.Model.Article is not null);
             RuleFor(x => x.Model.Article.TagList)
                 .NotNull()
                 .When(x => x.Model.Article is { TagListSet: true });
