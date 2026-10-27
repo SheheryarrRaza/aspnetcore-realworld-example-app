@@ -63,6 +63,24 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
                     b.ToTable("Articles");
                 });
 
+            modelBuilder.Entity("Conduit.Domain.ArticleBookmark", b =>
+                {
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ArticleId", "PersonId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("ArticleBookmarks");
+                });
+
             modelBuilder.Entity("Conduit.Domain.ArticleFavorite", b =>
                 {
                     b.Property<int>("ArticleId")
@@ -203,6 +221,25 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("Conduit.Domain.ArticleBookmark", b =>
+                {
+                    b.HasOne("Conduit.Domain.Article", "Article")
+                        .WithMany("ArticleBookmarks")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Conduit.Domain.Person", "Person")
+                        .WithMany("ArticleBookmarks")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Person");
+                });
+
             modelBuilder.Entity("Conduit.Domain.ArticleFavorite", b =>
                 {
                     b.HasOne("Conduit.Domain.Article", "Article")
@@ -281,6 +318,8 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
 
             modelBuilder.Entity("Conduit.Domain.Article", b =>
                 {
+                    b.Navigation("ArticleBookmarks");
+
                     b.Navigation("ArticleFavorites");
 
                     b.Navigation("ArticleTags");
@@ -290,6 +329,8 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
 
             modelBuilder.Entity("Conduit.Domain.Person", b =>
                 {
+                    b.Navigation("ArticleBookmarks");
+
                     b.Navigation("ArticleFavorites");
 
                     b.Navigation("Followers");

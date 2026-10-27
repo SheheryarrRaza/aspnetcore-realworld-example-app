@@ -36,6 +36,18 @@ public class ArticlesController(IMediator mediator) : Controller
             cancellationToken
         );
 
+    [HttpGet("bookmarked")]
+    [Authorize(AuthenticationSchemes = JwtIssuerOptions.Schemes)]
+    public ValueTask<ArticlesEnvelope> GetBookmarked(
+        [FromQuery] int? limit,
+        [FromQuery] int? offset,
+        CancellationToken cancellationToken
+    ) =>
+        mediator.Send(
+            new List.Query(null, null, null, limit, offset) { IsBookmarked = true },
+            cancellationToken
+        );
+
     [HttpGet("{slug}")]
     public ValueTask<ArticleEnvelope> Get(string slug, CancellationToken cancellationToken) =>
         mediator.Send(new Details.Query(slug), cancellationToken);

@@ -15,4 +15,14 @@ public static class ArticleViewerExtensions
                 && article.ArticleFavorites.Any(x => x.PersonId == personId.Value);
         }
     }
+
+    public static void PopulateBookmarked(this IEnumerable<Article> articles, int? personId)
+    {
+        foreach (var article in articles)
+        {
+            article.Bookmarked =
+                personId.HasValue
+                && article.ArticleBookmarks.Any(x => x.PersonId == personId.Value);
+        }
+    }
 }
