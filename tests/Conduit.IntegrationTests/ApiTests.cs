@@ -109,4 +109,43 @@ public class ApiTests
             Assert.Single(article.GetProperty("tagList").EnumerateArray()).GetString()
         );
     }
+
+    [Fact]
+    public async Task Favorites_Count_Requires_Authentication_And_Reflects_Favorites()
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var unauthorized = await client.GetAsync("/api/user/favorites/count");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        Assert.Contains("errors", await unauthorized.Content.ReadAsStringAsync());
+
+        using var register = await client.PostAsync(
+            "/api/users",
+            Json("""{"user":{"username":"fan","email":"fan@example.com","password":"password"}}""")
+        );
+        register.EnsureSuccessStatusCode();
+        using var user = JsonDocument.Parse(await register.Content.ReadAsStringAsync());
+        client.DefaultRequestHeaders.Add(
+            "Authorization",
+            "Token " + user.RootElement.GetProperty("user").GetProperty("token").GetString()
+        );
+
+        using var empty = await client.GetAsync("/api/user/favorites/count");
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        using var emptyBody = JsonDocument.Parse(await empty.Content.ReadAsStringAsync());
+        Assert.Equal(0, emptyBody.RootElement.GetProperty("favoritesCount").GetInt32());
+
+        using var created = await client.PostAsync(
+            "/api/articles",
+            Json("""{"article":{"title":"some title","description":"description","body":"body"}}""")
+        );
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var favorited = await client.PostAsync("/api/articles/some-title/favorite", null);
+        favorited.EnsureSuccessStatusCode();
+
+        using var counted = await client.GetAsync("/api/user/favorites/count");
+        Assert.Equal(HttpStatusCode.OK, counted.StatusCode);
+        using var body = JsonDocument.Parse(await counted.Content.ReadAsStringAsync());
+        Assert.Equal(1, body.RootElement.GetProperty("favoritesCount").GetInt32());
+    }
 }
