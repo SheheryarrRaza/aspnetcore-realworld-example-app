@@ -109,4 +109,44 @@ public class ApiTests
             Assert.Single(article.GetProperty("tagList").EnumerateArray()).GetString()
         );
     }
+
+    [Fact]
+    public async Task Favorites_Count_Requires_Authentication_And_Counts_Current_User()
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var unauthorized = await client.GetAsync("/api/user/favorites/count");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        Assert.Contains("errors", await unauthorized.Content.ReadAsStringAsync());
+
+        using var register = await client.PostAsync(
+            "/api/users",
+            Json("""{"user":{"username":"fan","email":"fan@example.com","password":"password"}}""")
+        );
+        register.EnsureSuccessStatusCode();
+        using var user = JsonDocument.Parse(await register.Content.ReadAsStringAsync());
+        client.DefaultRequestHeaders.Add(
+            "Authorization",
+            "Token " + user.RootElement.GetProperty("user").GetProperty("token").GetString()
+        );
+        using var created = await client.PostAsync(
+            "/api/articles",
+            Json(
+                """{"article":{"title":"a title","description":"description","body":"body","tagList":[]}}"""
+            )
+        );
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        using var empty = await client.GetAsync("/api/user/favorites/count");
+        empty.EnsureSuccessStatusCode();
+        using var emptyBody = JsonDocument.Parse(await empty.Content.ReadAsStringAsync());
+        Assert.Equal(0, emptyBody.RootElement.GetProperty("favoritesCount").GetInt32());
+
+        using var favorited = await client.PostAsync("/api/articles/a-title/favorite", null);
+        favorited.EnsureSuccessStatusCode();
+        using var counted = await client.GetAsync("/api/user/favorites/count");
+        counted.EnsureSuccessStatusCode();
+        using var countedBody = JsonDocument.Parse(await counted.Content.ReadAsStringAsync());
+        Assert.Equal(1, countedBody.RootElement.GetProperty("favoritesCount").GetInt32());
+    }
 }
