@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.RateLimiting;
 using Conduit;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -69,6 +72,35 @@ builder.Services.AddConduit();
 builder.Services.AddJwt(builder.Configuration);
 builder.Services.AddAuthorization();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(
+        "profile-counts",
+        context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 60,
+                    Window = TimeSpan.FromMinutes(1),
+                }
+            )
+    );
+    options.AddPolicy(
+        "clear-favorites",
+        context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                }
+            )
+    );
+});
+
 var app = builder.Build();
 
 app.Services.GetRequiredService<ILoggerFactory>().AddSerilogLogging();
@@ -77,6 +109,8 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseRouting();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

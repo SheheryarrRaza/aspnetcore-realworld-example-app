@@ -82,6 +82,7 @@ public static class ServicesExtensions
         services.AddValidatorsFromAssemblyContaining<Details.QueryValidator>();
 
         services.AddSingleton<Features.ConduitMapper>();
+        services.AddSingleton<ProfileCountsCache>();
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

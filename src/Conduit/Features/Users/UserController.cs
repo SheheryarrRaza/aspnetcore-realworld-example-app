@@ -5,6 +5,7 @@ using Conduit.Infrastructure.Security;
 using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Conduit.Features.Users;
 
@@ -24,4 +25,15 @@ public class UserController(IMediator mediator, ICurrentUserAccessor currentUser
         [FromBody] Edit.Command command,
         CancellationToken cancellationToken
     ) => mediator.Send(command, cancellationToken);
+
+    /// <summary>
+    /// Removes all favourites of the signed-in user, rate limited per client.
+    /// </summary>
+    [EnableRateLimiting("clear-favorites")]
+    [HttpDelete("favorites")]
+    public async ValueTask<IActionResult> ClearFavorites(CancellationToken cancellationToken)
+    {
+        await mediator.Send(new Favorites.Clear.Command(), cancellationToken);
+        return new NoContentResult();
+    }
 }

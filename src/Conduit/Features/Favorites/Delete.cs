@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Conduit.Features.Articles;
+using Conduit.Features.Profiles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using FluentValidation;
@@ -19,9 +20,15 @@ public class Delete
         public CommandValidator() => RuleFor(x => x.Slug).NotNull().NotEmpty();
     }
 
-    public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
-        : IRequestHandler<Command, ArticleEnvelope>
+    public class QueryHandler(
+        ConduitContext context,
+        ICurrentUserAccessor currentUserAccessor,
+        ProfileCountsCache countsCache
+    ) : IRequestHandler<Command, ArticleEnvelope>
     {
+        /// <summary>
+        /// Removes the article from the signed-in user's favourites and evicts their cached counts.
+        /// </summary>
         public async ValueTask<ArticleEnvelope> Handle(
             Command message,
             CancellationToken cancellationToken
@@ -52,6 +59,7 @@ public class Delete
             {
                 context.ArticleFavorites.Remove(favorite);
                 await context.SaveChangesAsync(cancellationToken);
+                countsCache.Evict(person.PersonId);
             }
 
             article = await context
