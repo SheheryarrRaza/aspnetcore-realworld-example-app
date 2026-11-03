@@ -84,16 +84,14 @@ public class ConduitContext(DbContextOptions options) : DbContext(options)
         {
             b.HasKey(t => new { t.ArticleId, t.PersonId });
 
-            b.Property(x => x.CreatedAt)
-                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
-
             b.HasOne(pt => pt.Article)
                 .WithMany(p => p.ArticleBookmarks)
                 .HasForeignKey(pt => pt.ArticleId);
 
-            b.HasOne(pt => pt.Person)
-                .WithMany(t => t.ArticleBookmarks)
-                .HasForeignKey(pt => pt.PersonId);
+            b.HasOne(pt => pt.Person).WithMany().HasForeignKey(pt => pt.PersonId);
+
+            b.Property(x => x.CreatedAt)
+                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
         });
 
         modelBuilder.Entity<FollowedPeople>(b =>

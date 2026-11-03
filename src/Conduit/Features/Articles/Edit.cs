@@ -159,8 +159,10 @@ public class Edit
                 throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
             }
 
-            new[] { article }.PopulateFavorited(currentUserAccessor.GetCurrentPersonId());
-            new[] { article }.PopulateBookmarked(currentUserAccessor.GetCurrentPersonId());
+            var currentPersonId = currentUserAccessor.GetCurrentPersonId();
+            var articles = new[] { article };
+            articles.PopulateFavorited(currentPersonId);
+            await articles.PopulateBookmarkedAsync(context, currentPersonId, cancellationToken);
             return new ArticleEnvelope(article);
         }
 

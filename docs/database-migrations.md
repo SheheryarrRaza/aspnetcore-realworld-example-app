@@ -12,6 +12,8 @@ The initial migration describes the previous schema. `UniqueIdentities` adds uni
 username, email, and slug indexes. On SQL Server it also bounds their column sizes.
 No password columns change: the existing `Hash` column stores Identity's versioned
 payload, while `Salt` remains available for legacy password verification.
+`AddArticleBookmarks` creates the `ArticleBookmarks` table for private per-user
+bookmarks; it only adds a table and a foreign key index, and its `Down` drops just that table.
 
 ## Fresh databases
 

@@ -21,64 +21,57 @@ public class Add
         public CommandValidator() => RuleFor(x => x.Slug).NotNull().NotEmpty();
     }
 
-    public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
+    public class Handler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
         : IRequestHandler<Command, ArticleEnvelope>
     {
+        /// <summary>
+        /// Bookmarks the article for the current user; repeating the call changes nothing.
+        /// </summary>
         public async ValueTask<ArticleEnvelope> Handle(
             Command message,
             CancellationToken cancellationToken
         )
         {
-            var article = await context.Articles.FirstOrDefaultAsync(
-                x => x.Slug == message.Slug,
+            var currentPersonId = currentUserAccessor.GetCurrentPersonId();
+            var article =
+                await context
+                    .Articles.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Slug == message.Slug, cancellationToken)
+                ?? throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
+
+            var personExists = await context.Persons.AnyAsync(
+                x => x.PersonId == currentPersonId,
                 cancellationToken
             );
-
-            if (article == null)
+            if (!personExists || currentPersonId is null)
             {
                 throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
             }
 
-            var person = await context.Persons.FirstOrDefaultAsync(
-                x => x.PersonId == currentUserAccessor.GetCurrentPersonId(),
+            var bookmarked = await context.ArticleBookmarks.AnyAsync(
+                x => x.ArticleId == article.ArticleId && x.PersonId == currentPersonId,
                 cancellationToken
             );
-
-            if (person is null)
+            if (!bookmarked)
             {
-                throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
-            }
-
-            var bookmark = await context.ArticleBookmarks.FirstOrDefaultAsync(
-                x => x.ArticleId == article.ArticleId && x.PersonId == person.PersonId,
-                cancellationToken
-            );
-
-            if (bookmark == null)
-            {
-                bookmark = new ArticleBookmark
-                {
-                    Article = article,
-                    ArticleId = article.ArticleId,
-                    Person = person,
-                    PersonId = person.PersonId,
-                    CreatedAt = DateTime.UtcNow,
-                };
-                await context.ArticleBookmarks.AddAsync(bookmark, cancellationToken);
+                await context.ArticleBookmarks.AddAsync(
+                    new ArticleBookmark
+                    {
+                        ArticleId = article.ArticleId,
+                        PersonId = currentPersonId.Value,
+                        CreatedAt = DateTime.UtcNow,
+                    },
+                    cancellationToken
+                );
                 await context.SaveChangesAsync(cancellationToken);
             }
 
-            article = await context
-                .Articles.GetAllData()
-                .FirstOrDefaultAsync(x => x.ArticleId == article.ArticleId, cancellationToken);
-            if (article is null)
-            {
-                throw new RestException(HttpStatusCode.NotFound, "article", Constants.NOT_FOUND);
-            }
-
-            new[] { article }.PopulateFavorited(currentUserAccessor.GetCurrentPersonId());
-            new[] { article }.PopulateBookmarked(currentUserAccessor.GetCurrentPersonId());
-            return new ArticleEnvelope(article);
+            return await BookmarkResponse.BuildAsync(
+                context,
+                article.ArticleId,
+                currentPersonId,
+                cancellationToken
+            );
         }
     }
 }

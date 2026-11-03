@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
+using Conduit.Domain;
 using Conduit.Features.Articles;
 using Conduit.IntegrationTests.Features.Comments;
 using Conduit.IntegrationTests.Features.Users;
@@ -133,38 +133,45 @@ public class DeleteTests : SliceFixture
     }
 
     [Fact]
-    public async Task Expect_Delete_Article_Removes_Bookmarks()
+    public async Task Expect_Delete_Article_Removes_Bookmarks_Of_All_Users()
     {
-        var createCmd = new Create.Command(
-            new Create.ArticleData
-            {
-                Title = "Test article with bookmark",
-                Description = "Description of the test article",
-                Body = "Body of the test article",
-            }
+        var article = await ArticleHelpers.CreateArticle(
+            this,
+            new Create.Command(
+                new Create.ArticleData
+                {
+                    Title = "Bookmarked article",
+                    Description = "Description of the test article",
+                    Body = "Body of the test article",
+                }
+            )
+        );
+        var other = new Person { Username = "other" };
+        await InsertAsync(other);
+        var author = await ExecuteDbContextAsync(db =>
+            db.Persons.SingleAsync(x => x.Username == UserHelpers.DefaultUserName)
+        );
+        var survivor = new Article
+        {
+            Slug = "survivor",
+            Author = new Person { Username = "survivor-author" },
+        };
+        await InsertAsync(survivor);
+        await InsertAsync(
+            new ArticleBookmark { ArticleId = article.ArticleId, PersonId = author.PersonId },
+            new ArticleBookmark { ArticleId = article.ArticleId, PersonId = other.PersonId },
+            new ArticleBookmark { ArticleId = survivor.ArticleId, PersonId = author.PersonId }
         );
 
-        var article = await ArticleHelpers.CreateArticle(this, createCmd);
-        var slug = article.Slug ?? throw new InvalidOperationException();
-
-        var dbContext = GetDbContext();
-        var accessor = new StubCurrentUserAccessor(UserHelpers.DefaultUserName);
-        await new Conduit.Features.Bookmarks.Add.QueryHandler(dbContext, accessor).Handle(
-            new Conduit.Features.Bookmarks.Add.Command(slug),
-            CancellationToken.None
+        await new Delete.QueryHandler(
+            GetDbContext(),
+            new StubCurrentUserAccessor(UserHelpers.DefaultUserName, author.PersonId)
+        ).Handle(
+            new Delete.Command(article.Slug ?? throw new InvalidOperationException()),
+            default
         );
 
-        var bookmarkCountBeforeDelete = await ExecuteDbContextAsync(db =>
-            db.ArticleBookmarks.Where(b => b.Article!.Slug == slug).CountAsync()
-        );
-        Assert.Equal(1, bookmarkCountBeforeDelete);
-
-        var articleDeleteHandler = new Delete.QueryHandler(dbContext, accessor);
-        await articleDeleteHandler.Handle(new Delete.Command(slug), CancellationToken.None);
-
-        var bookmarkCountAfterDelete = await ExecuteDbContextAsync(db =>
-            db.ArticleBookmarks.Where(b => b.Article!.Slug == slug).CountAsync()
-        );
-        Assert.Equal(0, bookmarkCountAfterDelete);
+        var remaining = await ExecuteDbContextAsync(db => db.ArticleBookmarks.ToListAsync());
+        Assert.Equal(survivor.ArticleId, Assert.Single(remaining).ArticleId);
     }
 }

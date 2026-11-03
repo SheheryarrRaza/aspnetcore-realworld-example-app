@@ -65,6 +65,7 @@ public class MigrationTests
             .GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
         Assert.Contains("CREATE UNIQUE INDEX [IX_Persons_Username]", script);
         Assert.Contains("nvarchar(320)", script);
+        Assert.Contains("ArticleBookmarks", script);
         Assert.DoesNotContain("AUTOINCREMENT", script);
     }
 }

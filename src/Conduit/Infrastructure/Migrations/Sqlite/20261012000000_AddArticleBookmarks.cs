@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Conduit.Infrastructure.Migrations.SqlServer;
+namespace Conduit.Infrastructure.Migrations.Sqlite;
 
 /// <inheritdoc />
-public partial class AddBookmarks : Migration
+public partial class AddArticleBookmarks : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,9 +15,9 @@ public partial class AddBookmarks : Migration
             name: "ArticleBookmarks",
             columns: table => new
             {
-                ArticleId = table.Column<int>(type: "int", nullable: false),
-                PersonId = table.Column<int>(type: "int", nullable: false),
-                CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                ArticleId = table.Column<int>(type: "INTEGER", nullable: false),
+                PersonId = table.Column<int>(type: "INTEGER", nullable: false),
+                CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
             },
             constraints: table =>
             {

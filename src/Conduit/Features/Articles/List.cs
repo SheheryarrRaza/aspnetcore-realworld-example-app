@@ -2,7 +2,6 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Conduit.Features.Profiles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using Mediator;
@@ -18,8 +17,7 @@ public class List
         string? FavoritedUsername,
         int? Limit,
         int? Offset,
-        bool IsFeed = false,
-        bool IsBookmarked = false
+        bool IsFeed = false
     ) : IRequest<ArticlesEnvelope>, IReadOnlyRequest;
 
     public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
@@ -68,61 +66,13 @@ public class List
                 );
             }
 
-            if (message.IsBookmarked)
-            {
-                if (currentPersonId == null)
-                {
-                    throw new RestException(HttpStatusCode.Unauthorized, "token", "is missing");
-                }
-                queryable = queryable.Where(x =>
-                    x.ArticleBookmarks.Any(y => y.PersonId == currentPersonId)
-                );
-            }
-
             var count = await queryable.CountAsync(cancellationToken);
-            var orderedQueryable = message.IsBookmarked
-                ? queryable
-                    .OrderByDescending(x =>
-                        x.ArticleBookmarks.Where(y => y.PersonId == currentPersonId)
-                            .Select(y => y.CreatedAt)
-                            .FirstOrDefault()
-                    )
-                    .ThenByDescending(x => x.ArticleId)
-                : queryable.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.ArticleId);
-            var articles = await orderedQueryable
+            var articles = await queryable
+                .OrderByDescending(x => x.CreatedAt)
+                .ThenByDescending(x => x.ArticleId)
                 .Skip(message.Offset ?? 0)
                 .Take(message.Limit ?? 20)
-                .Select(x => new ArticleSummary
-                {
-                    Slug = x.Slug,
-                    Title = x.Title,
-                    Description = x.Description,
-                    CreatedAt = x.CreatedAt,
-                    UpdatedAt = x.UpdatedAt,
-                    TagList = x.ArticleTags.Select(y => y.TagId!).ToList(),
-                    FavoritesCount = x.ArticleFavorites.Count,
-                    Favorited =
-                        currentPersonId != null
-                        && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
-                    Bookmarked =
-                        currentPersonId != null
-                        && x.ArticleBookmarks.Any(y => y.PersonId == currentPersonId),
-                    Author =
-                        x.Author == null
-                            ? null
-                            : new Profile
-                            {
-                                Username = x.Author.Username,
-                                Bio = x.Author.Bio,
-                                Image = x.Author.Image,
-                                IsFollowed =
-                                    currentPersonId != null
-                                    && context.FollowedPeople.Any(y =>
-                                        y.ObserverId == currentPersonId
-                                        && y.TargetId == x.Author.PersonId
-                                    ),
-                            },
-                })
+                .ToSummaries(context, currentPersonId)
                 .ToListAsync(cancellationToken);
             return new ArticlesEnvelope { Articles = articles, ArticlesCount = count };
         }

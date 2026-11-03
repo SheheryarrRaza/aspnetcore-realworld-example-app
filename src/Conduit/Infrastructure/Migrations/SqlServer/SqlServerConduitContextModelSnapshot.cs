@@ -230,7 +230,7 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
                         .IsRequired();
 
                     b.HasOne("Conduit.Domain.Person", "Person")
-                        .WithMany("ArticleBookmarks")
+                        .WithMany()
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -329,8 +329,6 @@ namespace Conduit.Infrastructure.Migrations.SqlServer
 
             modelBuilder.Entity("Conduit.Domain.Person", b =>
                 {
-                    b.Navigation("ArticleBookmarks");
-
                     b.Navigation("ArticleFavorites");
 
                     b.Navigation("Followers");

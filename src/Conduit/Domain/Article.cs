@@ -28,12 +28,12 @@ public class Article
     [NotMapped]
     public bool Favorited { get; set; }
 
-    [NotMapped]
-    public int FavoritesCount => ArticleFavorites?.Count ?? 0;
-
-    // whether the current viewer bookmarked this article; private, so there is no public count
+    // whether the current user bookmarked this article; bookmarks are private to that user
     [NotMapped]
     public bool Bookmarked { get; set; }
+
+    [NotMapped]
+    public int FavoritesCount => ArticleFavorites?.Count ?? 0;
 
     [NotMapped]
     public List<string> TagList =>
