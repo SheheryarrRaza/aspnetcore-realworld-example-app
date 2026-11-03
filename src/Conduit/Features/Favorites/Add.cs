@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Conduit.Domain;
 using Conduit.Features.Articles;
+using Conduit.Features.Profiles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using FluentValidation;
@@ -20,9 +21,15 @@ public class Add
         public CommandValidator() => RuleFor(x => x.Slug).NotNull().NotEmpty();
     }
 
-    public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
-        : IRequestHandler<Command, ArticleEnvelope>
+    public class QueryHandler(
+        ConduitContext context,
+        ICurrentUserAccessor currentUserAccessor,
+        ProfileCountsCache countsCache
+    ) : IRequestHandler<Command, ArticleEnvelope>
     {
+        /// <summary>
+        /// Adds the article to the signed-in user's favourites and evicts their cached counts.
+        /// </summary>
         public async ValueTask<ArticleEnvelope> Handle(
             Command message,
             CancellationToken cancellationToken
@@ -64,6 +71,7 @@ public class Add
                 };
                 await context.ArticleFavorites.AddAsync(favorite, cancellationToken);
                 await context.SaveChangesAsync(cancellationToken);
+                countsCache.Evict(person.PersonId);
             }
 
             article = await context
