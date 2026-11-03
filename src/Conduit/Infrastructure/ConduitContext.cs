@@ -24,6 +24,7 @@ public class ConduitContext(DbContextOptions options) : DbContext(options)
     public DbSet<Tag> Tags { get; init; } = null!;
     public DbSet<ArticleTag> ArticleTags { get; init; } = null!;
     public DbSet<ArticleFavorite> ArticleFavorites { get; init; } = null!;
+    public DbSet<ArticleBookmark> ArticleBookmarks { get; init; } = null!;
     public DbSet<FollowedPeople> FollowedPeople { get; init; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -77,6 +78,20 @@ public class ConduitContext(DbContextOptions options) : DbContext(options)
             b.HasOne(pt => pt.Person)
                 .WithMany(t => t.ArticleFavorites)
                 .HasForeignKey(pt => pt.PersonId);
+        });
+
+        modelBuilder.Entity<ArticleBookmark>(b =>
+        {
+            b.HasKey(t => new { t.ArticleId, t.PersonId });
+
+            b.HasOne(pt => pt.Article)
+                .WithMany(p => p.ArticleBookmarks)
+                .HasForeignKey(pt => pt.ArticleId);
+
+            b.HasOne(pt => pt.Person).WithMany().HasForeignKey(pt => pt.PersonId);
+
+            b.Property(x => x.CreatedAt)
+                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
         });
 
         modelBuilder.Entity<FollowedPeople>(b =>

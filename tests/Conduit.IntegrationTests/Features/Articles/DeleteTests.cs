@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Conduit.Domain;
 using Conduit.Features.Articles;
 using Conduit.IntegrationTests.Features.Comments;
 using Conduit.IntegrationTests.Features.Users;
@@ -129,5 +130,48 @@ public class DeleteTests : SliceFixture
             db.Articles.Where(d => d.Slug == deleteCmd.Slug).SingleOrDefaultAsync()
         );
         Assert.Null(deleted);
+    }
+
+    [Fact]
+    public async Task Expect_Delete_Article_Removes_Bookmarks_Of_All_Users()
+    {
+        var article = await ArticleHelpers.CreateArticle(
+            this,
+            new Create.Command(
+                new Create.ArticleData
+                {
+                    Title = "Bookmarked article",
+                    Description = "Description of the test article",
+                    Body = "Body of the test article",
+                }
+            )
+        );
+        var other = new Person { Username = "other" };
+        await InsertAsync(other);
+        var author = await ExecuteDbContextAsync(db =>
+            db.Persons.SingleAsync(x => x.Username == UserHelpers.DefaultUserName)
+        );
+        var survivor = new Article
+        {
+            Slug = "survivor",
+            Author = new Person { Username = "survivor-author" },
+        };
+        await InsertAsync(survivor);
+        await InsertAsync(
+            new ArticleBookmark { ArticleId = article.ArticleId, PersonId = author.PersonId },
+            new ArticleBookmark { ArticleId = article.ArticleId, PersonId = other.PersonId },
+            new ArticleBookmark { ArticleId = survivor.ArticleId, PersonId = author.PersonId }
+        );
+
+        await new Delete.QueryHandler(
+            GetDbContext(),
+            new StubCurrentUserAccessor(UserHelpers.DefaultUserName, author.PersonId)
+        ).Handle(
+            new Delete.Command(article.Slug ?? throw new InvalidOperationException()),
+            default
+        );
+
+        var remaining = await ExecuteDbContextAsync(db => db.ArticleBookmarks.ToListAsync());
+        Assert.Equal(survivor.ArticleId, Assert.Single(remaining).ArticleId);
     }
 }

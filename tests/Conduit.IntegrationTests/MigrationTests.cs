@@ -23,7 +23,7 @@ public class MigrationTests
         );
         await DatabaseInitializer.InitializeAsync(db);
         await DatabaseInitializer.InitializeAsync(db);
-        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 
@@ -53,7 +53,7 @@ public class MigrationTests
         );
         await DatabaseInitializer.InitializeAsync(db);
         Assert.Equal("existing", (await db.Persons.SingleAsync()).Username);
-        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
     }
 
     [Fact]
@@ -65,6 +65,7 @@ public class MigrationTests
             .GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
         Assert.Contains("CREATE UNIQUE INDEX [IX_Persons_Username]", script);
         Assert.Contains("nvarchar(320)", script);
+        Assert.Contains("ArticleBookmarks", script);
         Assert.DoesNotContain("AUTOINCREMENT", script);
     }
 }

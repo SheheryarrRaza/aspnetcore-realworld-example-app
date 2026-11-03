@@ -2,7 +2,6 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Conduit.Features.Profiles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using Mediator;
@@ -73,34 +72,7 @@ public class List
                 .ThenByDescending(x => x.ArticleId)
                 .Skip(message.Offset ?? 0)
                 .Take(message.Limit ?? 20)
-                .Select(x => new ArticleSummary
-                {
-                    Slug = x.Slug,
-                    Title = x.Title,
-                    Description = x.Description,
-                    CreatedAt = x.CreatedAt,
-                    UpdatedAt = x.UpdatedAt,
-                    TagList = x.ArticleTags.Select(y => y.TagId!).ToList(),
-                    FavoritesCount = x.ArticleFavorites.Count,
-                    Favorited =
-                        currentPersonId != null
-                        && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
-                    Author =
-                        x.Author == null
-                            ? null
-                            : new Profile
-                            {
-                                Username = x.Author.Username,
-                                Bio = x.Author.Bio,
-                                Image = x.Author.Image,
-                                IsFollowed =
-                                    currentPersonId != null
-                                    && context.FollowedPeople.Any(y =>
-                                        y.ObserverId == currentPersonId
-                                        && y.TargetId == x.Author.PersonId
-                                    ),
-                            },
-                })
+                .ToSummaries(context, currentPersonId)
                 .ToListAsync(cancellationToken);
             return new ArticlesEnvelope { Articles = articles, ArticlesCount = count };
         }

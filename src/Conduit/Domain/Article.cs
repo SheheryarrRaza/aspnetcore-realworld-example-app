@@ -28,6 +28,10 @@ public class Article
     [NotMapped]
     public bool Favorited { get; set; }
 
+    // whether the current user bookmarked this article; bookmarks are private to that user
+    [NotMapped]
+    public bool Bookmarked { get; set; }
+
     [NotMapped]
     public int FavoritesCount => ArticleFavorites?.Count ?? 0;
 
@@ -40,6 +44,9 @@ public class Article
 
     [JsonIgnore]
     public List<ArticleFavorite> ArticleFavorites { get; init; } = new();
+
+    [JsonIgnore]
+    public List<ArticleBookmark> ArticleBookmarks { get; init; } = new();
 
     public DateTime CreatedAt { get; init; }
 

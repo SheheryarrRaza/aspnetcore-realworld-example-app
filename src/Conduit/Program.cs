@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Conduit;
+using Conduit.Features.Bookmarks;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using Microsoft.AspNetCore.Builder;
@@ -68,6 +69,7 @@ builder.Services.AddConduit();
 
 builder.Services.AddJwt(builder.Configuration);
 builder.Services.AddAuthorization();
+builder.Services.AddBookmarkRateLimiting();
 
 var app = builder.Build();
 
@@ -80,6 +82,7 @@ app.UseCors(x => x.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 
 // Enable middleware to serve generated Swagger as a JSON endpoint
