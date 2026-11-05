@@ -90,7 +90,7 @@ public class ListTests : SliceFixture
         var user = await Users.UserHelpers.CreateDefaultUser(this);
         var dbContext = GetDbContext();
         var currentAccessor = new StubCurrentUserAccessor(user.Username);
-        var handler = new List.QueryHandler(dbContext, currentAccessor);
+        var handler = new List.QueryHandler(dbContext, currentAccessor, CommentCountCache);
 
         var result = await handler.Handle(
             new List.Query(null, null, null, null, null) { IsFeed = true },

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Conduit.Features.Articles;
 using Conduit.Infrastructure;
 using Mediator;
 using Microsoft.Data.Sqlite;
@@ -35,6 +36,9 @@ public class SliceFixture : IDisposable
     // Mediator and database helpers each use a fresh scoped context.
     public ConduitContext GetDbContext() =>
         _directScope.ServiceProvider.GetRequiredService<ConduitContext>();
+
+    // The same singleton the mediator handlers use, so hand-built handlers evict the shared cache.
+    public CommentCountCache CommentCountCache => _provider.GetRequiredService<CommentCountCache>();
 
     public void Dispose()
     {

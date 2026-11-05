@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -21,9 +22,14 @@ public class List
         bool IsFeed = false
     ) : IRequest<ArticlesEnvelope>, IReadOnlyRequest;
 
-    public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
-        : IRequestHandler<Query, ArticlesEnvelope>
+    public class QueryHandler(
+        ConduitContext context,
+        ICurrentUserAccessor currentUserAccessor,
+        CommentCountCache commentCountCache
+    ) : IRequestHandler<Query, ArticlesEnvelope>
     {
+        public const int MaxLimit = 100;
+
         public async ValueTask<ArticlesEnvelope> Handle(
             Query message,
             CancellationToken cancellationToken
@@ -72,37 +78,102 @@ public class List
                 .OrderByDescending(x => x.CreatedAt)
                 .ThenByDescending(x => x.ArticleId)
                 .Skip(message.Offset ?? 0)
-                .Take(message.Limit ?? 20)
-                .Select(x => new ArticleSummary
+                .Take(int.Min(message.Limit ?? 20, MaxLimit))
+                .Select(x => new
                 {
-                    Slug = x.Slug,
-                    Title = x.Title,
-                    Description = x.Description,
-                    CreatedAt = x.CreatedAt,
-                    UpdatedAt = x.UpdatedAt,
-                    TagList = x.ArticleTags.Select(y => y.TagId!).ToList(),
-                    FavoritesCount = x.ArticleFavorites.Count,
-                    Favorited =
-                        currentPersonId != null
-                        && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
-                    Author =
-                        x.Author == null
-                            ? null
-                            : new Profile
-                            {
-                                Username = x.Author.Username,
-                                Bio = x.Author.Bio,
-                                Image = x.Author.Image,
-                                IsFollowed =
-                                    currentPersonId != null
-                                    && context.FollowedPeople.Any(y =>
-                                        y.ObserverId == currentPersonId
-                                        && y.TargetId == x.Author.PersonId
-                                    ),
-                            },
+                    x.ArticleId,
+                    Summary = new ArticleSummary
+                    {
+                        Slug = x.Slug,
+                        Title = x.Title,
+                        Description = x.Description,
+                        CreatedAt = x.CreatedAt,
+                        UpdatedAt = x.UpdatedAt,
+                        TagList = x.ArticleTags.Select(y => y.TagId!).ToList(),
+                        FavoritesCount = x.ArticleFavorites.Count,
+                        Favorited =
+                            currentPersonId != null
+                            && x.ArticleFavorites.Any(y => y.PersonId == currentPersonId),
+                        Author =
+                            x.Author == null
+                                ? null
+                                : new Profile
+                                {
+                                    Username = x.Author.Username,
+                                    Bio = x.Author.Bio,
+                                    Image = x.Author.Image,
+                                    IsFollowed =
+                                        currentPersonId != null
+                                        && context.FollowedPeople.Any(y =>
+                                            y.ObserverId == currentPersonId
+                                            && y.TargetId == x.Author.PersonId
+                                        ),
+                                },
+                    },
                 })
                 .ToListAsync(cancellationToken);
-            return new ArticlesEnvelope { Articles = articles, ArticlesCount = count };
+
+            var commentCounts = await LoadCommentCountsAsync(
+                [.. articles.Select(x => x.ArticleId).Distinct()],
+                cancellationToken
+            );
+            foreach (var article in articles)
+            {
+                article.Summary.CommentsCount = commentCounts[article.ArticleId];
+            }
+
+            return new ArticlesEnvelope
+            {
+                Articles = [.. articles.Select(x => x.Summary)],
+                ArticlesCount = count,
+            };
+        }
+
+        private async Task<Dictionary<int, int>> LoadCommentCountsAsync(
+            List<int> articleIds,
+            CancellationToken cancellationToken
+        )
+        {
+            var counts = new Dictionary<int, int>();
+            var misses = new List<int>();
+            foreach (var articleId in articleIds)
+            {
+                if (commentCountCache.TryGet(articleId, out var cached))
+                {
+                    counts[articleId] = cached;
+                }
+                else
+                {
+                    misses.Add(articleId);
+                }
+            }
+
+            if (misses.Count == 0)
+            {
+                return counts;
+            }
+
+            var snapshot = commentCountCache.Snapshot();
+            var queried = await context
+                .Comments.AsNoTracking()
+                .Where(x => misses.Contains(x.ArticleId))
+                .GroupBy(x => x.ArticleId)
+                .Select(g => new { ArticleId = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            var missCounts = misses.ToDictionary(id => id, _ => 0);
+            foreach (var item in queried)
+            {
+                missCounts[item.ArticleId] = item.Count;
+            }
+
+            commentCountCache.Store(missCounts, snapshot);
+            foreach (var (articleId, count) in missCounts)
+            {
+                counts[articleId] = count;
+            }
+
+            return counts;
         }
     }
 }

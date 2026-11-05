@@ -39,7 +39,11 @@ public static class CommentHelpers
         var dbContext = fixture.GetDbContext();
         var currentAccessor = new StubCurrentUserAccessor(userName);
 
-        var commentCreateHandler = new Create.Handler(dbContext, currentAccessor);
+        var commentCreateHandler = new Create.Handler(
+            dbContext,
+            currentAccessor,
+            fixture.CommentCountCache
+        );
         var created = await commentCreateHandler.Handle(
             command,
             new System.Threading.CancellationToken()

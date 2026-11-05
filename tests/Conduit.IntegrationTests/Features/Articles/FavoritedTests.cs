@@ -33,7 +33,7 @@ public class FavoritedTests : SliceFixture
         );
         Assert.Equal(expected, details.Article.Favorited);
         Assert.Equal(1, details.Article.FavoritesCount);
-        var list = await new List.QueryHandler(db, accessor).Handle(
+        var list = await new List.QueryHandler(db, accessor, CommentCountCache).Handle(
             new List.Query(null, null, null, null, null),
             default
         );
