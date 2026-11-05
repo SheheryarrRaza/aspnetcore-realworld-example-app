@@ -3,6 +3,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Conduit.Domain;
+using Conduit.Features.Articles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using FluentValidation;
@@ -25,8 +26,11 @@ public class Create
             RuleFor(x => x.Model.Comment.Body).NotEmpty().WithMessage(Constants.BLANK);
     }
 
-    public class Handler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
-        : IRequestHandler<Command, CommentEnvelope>
+    public class Handler(
+        ConduitContext context,
+        ICurrentUserAccessor currentUserAccessor,
+        CommentCountCache commentCountCache
+    ) : IRequestHandler<Command, CommentEnvelope>
     {
         public async ValueTask<CommentEnvelope> Handle(
             Command message,
@@ -59,6 +63,10 @@ public class Create
             article.Comments.Add(comment);
 
             await context.SaveChangesAsync(cancellationToken);
+            // Commit here so the eviction happens after the new count is visible to readers.
+            // The transaction behaviour's later commit is then a no-op.
+            await context.CommitTransactionAsync(cancellationToken);
+            commentCountCache.Invalidate(article.ArticleId);
 
             return new CommentEnvelope(comment);
         }

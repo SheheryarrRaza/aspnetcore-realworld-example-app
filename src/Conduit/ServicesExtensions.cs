@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -82,6 +83,8 @@ public static class ServicesExtensions
         services.AddValidatorsFromAssemblyContaining<Details.QueryValidator>();
 
         services.AddSingleton<Features.ConduitMapper>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<Features.Articles.CommentCountCache>();
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

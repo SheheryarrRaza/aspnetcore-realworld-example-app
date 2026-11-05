@@ -2,6 +2,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Conduit.Features.Articles;
 using Conduit.Infrastructure;
 using Conduit.Infrastructure.Errors;
 using FluentValidation;
@@ -19,8 +20,11 @@ public class Delete
         public CommandValidator() => RuleFor(x => x.Slug).NotNull().NotEmpty();
     }
 
-    public class QueryHandler(ConduitContext context, ICurrentUserAccessor currentUserAccessor)
-        : IRequestHandler<Command>
+    public class QueryHandler(
+        ConduitContext context,
+        ICurrentUserAccessor currentUserAccessor,
+        CommentCountCache commentCountCache
+    ) : IRequestHandler<Command>
     {
         public async ValueTask<Unit> Handle(Command message, CancellationToken cancellationToken)
         {
@@ -42,6 +46,10 @@ public class Delete
 
             context.Comments.Remove(comment);
             await context.SaveChangesAsync(cancellationToken);
+            // Commit here so the eviction happens after the deletion is visible to readers.
+            // The transaction behaviour's later commit is then a no-op.
+            await context.CommitTransactionAsync(cancellationToken);
+            commentCountCache.Invalidate(article.ArticleId);
             return Unit.Value;
         }
     }
