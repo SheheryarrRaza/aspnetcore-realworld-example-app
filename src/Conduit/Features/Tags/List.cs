@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,10 +21,19 @@ public class List
             var tags = await context
                 .Tags.OrderBy(x => x.TagId)
                 .AsNoTracking()
+                .Select(x => new { Tag = x.TagId ?? string.Empty, Count = x.ArticleTags.Count })
                 .ToListAsync(cancellationToken);
             return new TagsEnvelope
             {
-                Tags = tags?.Select(x => x.TagId ?? string.Empty).ToList() ?? new List<string>(),
+                Tags = [.. tags.Select(x => x.Tag)],
+                TagCounts =
+                [
+                    .. tags
+                        .Where(x => x.Count > 0)
+                        .OrderByDescending(x => x.Count)
+                        .ThenBy(x => x.Tag, System.StringComparer.Ordinal)
+                        .Select(x => new TagCount(x.Tag, x.Count))
+                ],
             };
         }
     }
